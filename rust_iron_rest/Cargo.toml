@@ -1,0 +1,17 @@
+[package]
+name = "rust_iron_rest"
+version = "0.1.0"
+authors = ["Илья Ефимов <inferrna@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+iron = "0.6.*"
+router = "*"
+persistent = "*"
+serde = "*"
+serde_json = "*"
+
+[dependencies.bodyparser]
+git = "https://github.com/iron/body-parser.git"
+
+
