@@ -10,6 +10,8 @@ router = "*"
 persistent = "*"
 serde = "*"
 serde_json = "*"
+base64 = "*"
+image = "*"
 
 [dependencies.bodyparser]
 git = "https://github.com/iron/body-parser.git"
