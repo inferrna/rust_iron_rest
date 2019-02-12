@@ -13,14 +13,15 @@ use iron::{headers, status, IronError};
 use http::StatusCode;
 use iron::modifiers::Header;
 use iron::error::HttpError;
-use image::{ImageResult, DynamicImage};
+use image::{ImageResult, DynamicImage, GenericImage};
 use router::Router;
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 use base64::decode_config_slice;
 use std::fmt::{self, Debug};
 
-use std::io::BufWriter; 
-use std::io::prelude::*;                                                                                                                                            use std::fs::File;
+use std::io::BufWriter;
+use std::io::prelude::*;
+use std::fs::File;
 
 
 macro_rules! any2image_err {
@@ -43,6 +44,11 @@ macro_rules! unwrap_or_empty {
     };
 }
 
+const MAXSZ: u32 = 100;
+const PATH: &str = "/tmp/images/";
+const TPATH: &str = "/tmp/images/thumbs/";
+const EXT: &str = ".jpg";
+
 fn decode2image(imstr: &str) -> ImageResult<DynamicImage>{
     let mut buf: Vec<u8> = vec![];
     any2image_err!(base64::decode_config_buf(imstr, base64::STANDARD, &mut buf), "Can't decode an image. ");
@@ -62,12 +68,19 @@ fn fetch_image(url: &str) -> ImageResult<DynamicImage>{
     return result;
 }
 
-fn process_image(img: DynamicImage, path: &str) -> Result<(), std::io::Error>{
-    return img.save(path);
+fn process_image(img: DynamicImage, name: &str) -> Result<(), std::io::Error>{
+    let imres = img.resize(MAXSZ, MAXSZ, image::imageops::CatmullRom);
+    let namext = name.to_string()+EXT;
+    println!("Saving {} to {}", namext, TPATH);
+    imres.save(TPATH.to_string()+&namext)?;
+    println!("Saving {} to {}", namext, PATH);
+    return img.save(PATH.to_string()+&namext);
 }
 
 
-fn submit_image(req :&mut Request) -> IronResult<Response> {
+
+
+fn _submit_image(req :&mut Request) -> IronResult<Response> {
     let bad_j = (status::BadRequest, "Not a JSON format");
     let req_body = itry!(itry!(req.get::<bodyparser::Json>(), bad_j).ok_or(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Such an error")), bad_j);
     let imageobjs = unwrap_or_empty!(req_body.get("images"));
@@ -77,19 +90,27 @@ fn submit_image(req :&mut Request) -> IronResult<Response> {
         let imgstr = iexpect!(obj.as_str());
         //dbg!(imgstr);
         let img = itry!(decode2image(imgstr), (status::InternalServerError, "Unable to decode from base64 data."));
-        itry!(process_image(img, "/tmp/decoded.png"), (status::InternalServerError, "Unable to process image."));
+        itry!(process_image(img, "decoded"), (status::InternalServerError, "Unable to process image."));
     }
     let urlobjs = unwrap_or_empty!(req_body.get("urls"));
     for obj in urlobjs {
         let url = iexpect!(obj.as_str());
         dbg!(url);
         let img = itry!(fetch_image(url), (status::BadGateway, "Unable to fetch ".to_string()+&url.to_string()));
-        itry!(process_image(img, "/tmp/linked.png"), (status::InternalServerError, "Unable to process image."));
+        itry!(process_image(img, "linked"), (status::InternalServerError, "Unable to process image."));
     }
     return Ok(Response::with((
         status::Ok,
         Header(headers::ContentType::json()), "{\"result\":\"ok\"}"
     )));
+}
+
+fn submit_image(req :&mut Request) -> IronResult<Response> {
+    let res = _submit_image(req);
+    if res.is_err() {
+        dbg!(res.as_ref()); //Real error goes to log.
+    }
+    return res;
 }
 
 fn main() {
