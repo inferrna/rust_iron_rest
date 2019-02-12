@@ -1,64 +1,91 @@
 extern crate bodyparser;
-extern crate iron;
-#[macro_use]
-extern crate router;
+#[macro_use] extern crate iron;
+#[macro_use] extern crate router;
 extern crate serde;
 extern crate serde_json;
 extern crate base64;
 extern crate image;
 extern crate reqwest;
+extern crate http;
 
-use iron::{headers, status};
-use iron::modifiers::Header;
 use iron::prelude::*;
+use iron::{headers, status, IronError};
+use http::StatusCode;
+use iron::modifiers::Header;
+use iron::error::HttpError;
+use image::{ImageResult, DynamicImage};
 use router::Router;
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 use base64::decode_config_slice;
+use std::fmt::{self, Debug};
 
 use std::io::BufWriter; 
-use std::io::prelude::*;                                                                                                                                              
-use std::fs::File;
+use std::io::prelude::*;                                                                                                                                            use std::fs::File;
 
-fn decode2image(imstr: &str) -> image::DynamicImage{
+
+macro_rules! any2image_err {
+    ($r:expr, $t:expr) => {
+        match $r {
+            Ok(v) => v,
+            Err(e) => return Err(image::ImageError::FormatError($t.to_string() + &e.to_string())),
+        }
+    };
+}
+macro_rules! unwrap_or_empty {
+    ($r:expr) => {
+        match $r {
+            Some(v) => match v.as_array() {
+                           Some(v) => v.to_owned(),
+                           None => vec![],
+                       },
+            None => vec![],
+        }
+    };
+}
+
+fn decode2image(imstr: &str) -> ImageResult<DynamicImage>{
     let mut buf: Vec<u8> = vec![];
-    base64::decode_config_buf(imstr, base64::STANDARD, &mut buf).unwrap();
-    let file = File::create("/tmp/decoded_raw.png").expect("Can't create file");
+    any2image_err!(base64::decode_config_buf(imstr, base64::STANDARD, &mut buf), "Can't decode an image. ");
+    let file = File::create("/tmp/decoded_raw.png")?;
     let mut bw = BufWriter::new(file);
     dbg!(bw.write_all(&buf));
-    let result = image::load_from_memory(&buf).unwrap();
+    let result = image::load_from_memory(&buf);
     //let result = image::load_from_memory_with_format(&buffer, image::ImageFormat::PNG).unwrap();
     return result;
 }
 
-fn fetch_image(url: &str) -> image::DynamicImage{
-    let mut resp = reqwest::get(url).unwrap();
+fn fetch_image(url: &str) -> ImageResult<DynamicImage>{
+    let mut resp = any2image_err!(reqwest::get(url), "Can't fetch an image. ");
     let mut buf: Vec<u8> = vec![];
-    resp.copy_to(&mut buf);
-    let result = image::load_from_memory(&buf).unwrap();
+    any2image_err!(resp.copy_to(&mut buf), "Can't copy decoded image from buffer. ");
+    let result = image::load_from_memory(&buf);
     return result;
 }
 
+fn process_image(img: DynamicImage, path: &str) -> Result<(), std::io::Error>{
+    return img.save(path);
+}
+
+
 fn submit_image(req :&mut Request) -> IronResult<Response> {
-    let req_body = req.get::<bodyparser::Json>().unwrap().unwrap();
-    //dbg!(&req_body);
-    let imageobjs = req_body.get("images").unwrap().as_array().unwrap();
-    let urlobjs = req_body.get("urls").unwrap().as_array().unwrap();
+    let bad_j = (status::BadRequest, "Not a JSON format");
+    let req_body = itry!(itry!(req.get::<bodyparser::Json>(), bad_j).ok_or(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Such an error")), bad_j);
+    let imageobjs = unwrap_or_empty!(req_body.get("images"));
     //dbg!(imageobjs);
 
     for obj in imageobjs {
-        let imgstr = obj.as_str().unwrap();
-        dbg!(imgstr);
-        let image = decode2image(imgstr);
-        image.save("/tmp/posted.png").unwrap();
+        let imgstr = iexpect!(obj.as_str());
+        //dbg!(imgstr);
+        let img = itry!(decode2image(imgstr), (status::InternalServerError, "Unable to decode from base64 data."));
+        itry!(process_image(img, "/tmp/decoded.png"), (status::InternalServerError, "Unable to process image."));
     }
+    let urlobjs = unwrap_or_empty!(req_body.get("urls"));
     for obj in urlobjs {
-        let url = obj.as_str().unwrap();
+        let url = iexpect!(obj.as_str());
         dbg!(url);
-        let image = fetch_image(url);
-        image.save("/tmp/linked.png").unwrap();
+        let img = itry!(fetch_image(url), (status::BadGateway, "Unable to fetch ".to_string()+&url.to_string()));
+        itry!(process_image(img, "/tmp/linked.png"), (status::InternalServerError, "Unable to process image."));
     }
-    
-
     return Ok(Response::with((
         status::Ok,
         Header(headers::ContentType::json()), "{\"result\":\"ok\"}"
