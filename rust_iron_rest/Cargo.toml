@@ -7,11 +7,11 @@ edition = "2018"
 [dependencies]
 iron = "0.6.*"
 router = "*"
-persistent = "*"
 serde = "*"
 serde_json = "*"
 base64 = "*"
 image = "*"
+reqwest = "*"
 
 [dependencies.bodyparser]
 git = "https://github.com/iron/body-parser.git"
