@@ -7,6 +7,7 @@ extern crate base64;
 extern crate image;
 extern crate reqwest;
 extern crate http;
+extern crate md5;
 
 use iron::prelude::*;
 use iron::{headers, status, IronError};
@@ -21,8 +22,7 @@ use std::fmt::{self, Debug};
 
 use std::io::BufWriter;
 use std::io::prelude::*;
-use std::fs::File;
-
+use std::fs::{File, read_dir};
 
 macro_rules! any2image_err {
     ($r:expr, $t:expr) => {
@@ -70,11 +70,21 @@ fn fetch_image(url: &str) -> ImageResult<DynamicImage>{
 
 fn process_image(img: DynamicImage, name: &str) -> Result<(), std::io::Error>{
     let imres = img.resize(MAXSZ, MAXSZ, image::imageops::CatmullRom);
-    let namext = name.to_string()+EXT;
-    println!("Saving {} to {}", namext, TPATH);
-    imres.save(TPATH.to_string()+&namext)?;
-    println!("Saving {} to {}", namext, PATH);
-    return img.save(PATH.to_string()+&namext);
+    let digest = md5::compute(img.raw_pixels());
+    let namext = format!("{}_{:x}{}", name.to_string(), digest, EXT);
+    let count = read_dir(PATH)?.take_while(Result::is_ok)
+                               .map(|e| e.unwrap().file_name().into_string())
+                               .take_while(Result::is_ok)
+                               .filter(|n| n.to_owned().unwrap().contains(namext.as_str())).count();
+    if count > 0 {
+        println!("{} already exists", namext);
+        return Ok(());
+    } else {
+        println!("Saving {} to {}", namext, TPATH);
+        imres.save(TPATH.to_string()+&namext)?;
+        println!("Saving {} to {}", namext, PATH);
+        return img.save(PATH.to_string()+&namext);
+    }
 }
 
 
