@@ -67,7 +67,7 @@ fn fetch_image(url: &str) -> ImageResult<DynamicImage>{
 fn process_image(img: DynamicImage, name: &str) -> Result<(), std::io::Error>{
     let imres = img.resize(MAXSZ, MAXSZ, image::imageops::CatmullRom);
     let digest = md5::compute(img.raw_pixels());
-    let namext = format!("{}_{:x}{}", name.to_string(), digest, EXT);
+    let namext = format!("{}_{:x}{}", name, digest, EXT);
     //Check if file already exists
     let count = read_dir(PATH)?.take_while(Result::is_ok)
                                .map(|e| e.unwrap().file_name().into_string())
