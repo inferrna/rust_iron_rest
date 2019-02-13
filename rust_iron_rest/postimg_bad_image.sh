@@ -1,0 +1,4 @@
+IMG="EKcOYR4KckQDqgCnSCgsHEUGkwrwV3FLuN093SFJOnwDxU8OsGb/mEm/PiQgDh7uJsOGdALah7kapXZBznp1pvNsrvKqd+5LYzj3Ehr3JKEXCQzcyJ7phUhWBbblN6mD2JNuHOrqxKc1ZIff1sJ1xsn2f9qZtuLVzXGisZSLFxbVh0t/gVKkOd7aOYT0KZBohV2/DkpnnJFJ5wcgOlCJMR55XhGHdNIeyX4ksRXo1Nn1aRorbVKnmt1LPES5HwNxy6E9LxN1aITvNl/lyvb4sSPquQ9VdSbnB0kK0n7BcY6ahKlcEojlLWDrWdPA/m4GQI7gguVyYQkDbS7YbwW7ZRT5b+eA0SBJHfTPtnhf31qP89Mv2VvVfJ73k+61AE37wQaO9nvJtNBvMQD3MUlFuSkGpgKUqqxmlbnjFcO5ZRL+DFVvlOIQoEBbxyGadmsjPTgKRiMUBeh8ouuOeFD1au1lBTVSFIwQZupz78oq4UbGydazifQZWxqV1uE52wvesY7FyYkcrkG9qzsO1vmlhby3g8tPgUigCzJcXpC7KpVEamZoGNV+eQ7TCrE2BjiLA66my+Tir95nT3qEen1c14KVkBbQBA0UqYBm7Bbt0nemKbVKBbeETAJZxfVt7YovhoeURW6psepImE9aDqP7WjHkxFJO+6ECR8GM6pWujXs="
+#echo $IMG | base64 -d > /tmp/out_decoded.rnd
+curl -X POST -i -H "Content-Type: application/json" -d '{"images":["'$IMG'"], "urls":["https://3dnews.ru/assets/external/icons/2019/02/11/982599.jpg"]}' http://localhost:3000/upload
+
