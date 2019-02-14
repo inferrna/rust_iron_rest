@@ -5,6 +5,11 @@ extern crate base64;
 extern crate image;
 extern crate reqwest;
 extern crate md5;
+#[cfg(feature = "cvresize")]
+extern crate cvtry;
+
+#[cfg(feature = "cvresize")]
+use cvtry::*;
 
 use iron::prelude::*;
 use iron::{headers, status};
@@ -14,6 +19,7 @@ use image::{ImageResult, DynamicImage};
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::fs::{File, read_dir};
+use std::cmp::{max, min};
 
 macro_rules! any2image_err {
     ($r:expr, $t:expr) => {
@@ -63,9 +69,25 @@ fn fetch_image(url: &str) -> ImageResult<DynamicImage>{
     return result;
 }
 
+
+#[cfg(feature = "cvresize")]
+fn resize_with_opencv(img: &DynamicImage, sz: i32) -> DynamicImage {
+    println!("Going to totally unsafe resize with OpenCV. You on your own.");
+    let (width, height) = img.to_rgb().dimensions();
+    let (imax, imin) = (max(width, height) as i32, min(width, height) as i32);
+    let (newmax, newmin) = (sz, sz*imin/imax);
+    let (n_width, n_height) = if width > height { (newmax, newmin) }
+                                           else { (newmin, newmax) };
+    println!("n_width = {}, n_height = {}", n_width, n_height);
+    let cvimg = convert_image_to_cv(&img);
+    let cvdest = resize_image_cv(cvimg, n_width, n_height);
+    let imgdest = convert_image_from_cv(cvdest);
+    return imgdest;
+}
+
 //Save image and thumbnail to desired storage
 fn process_image(img: DynamicImage, name: &str) -> Result<(), std::io::Error>{
-    let imres = img.resize(MAXSZ, MAXSZ, image::imageops::CatmullRom);
+
     let digest = md5::compute(img.raw_pixels());
     let namext = format!("{}_{:x}{}", name, digest, EXT);
     //Check if file already exists
@@ -77,6 +99,12 @@ fn process_image(img: DynamicImage, name: &str) -> Result<(), std::io::Error>{
         println!("{} already exists", namext);
         return Ok(());
     } else {
+#[cfg(not(feature = "cvresize"))]
+        let imres = img.resize(MAXSZ, MAXSZ, image::imageops::CatmullRom);
+
+#[cfg(feature = "cvresize")]
+        let imres = resize_with_opencv(&img, MAXSZ as i32);
+
         println!("Saving {} to {}", namext, TPATH);
         imres.save(format!("{}{}", TPATH, namext))?;
         println!("Saving {} to {}", namext, PATH);

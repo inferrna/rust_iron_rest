@@ -14,3 +14,9 @@ md5 = "*"
 
 [dependencies.bodyparser]
 git = "https://github.com/iron/body-parser.git"
+
+[dependencies.cvtry]
+git = "https://github.com/inferrna/rs_cv_resize.git"
+
+[features]
+cvresize = []
