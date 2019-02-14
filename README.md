@@ -16,6 +16,7 @@ or with
 cargo run --features cvresize
 ```
 to test it with opencv variant of resize function. (Need OpenCV 3.2 installed)
+
 3. Test service with scripts provided
 - **postimg.sh** - contains both base64 and url variants, both valid.
 - **postimg_bad_base64.sh** - same with invalid base64 data.
