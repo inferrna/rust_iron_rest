@@ -5,7 +5,7 @@ authors = ["Илья Ефимов <inferrna@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-iron = "0.6.*"
+iron = "*"
 router = "*"
 base64 = "*"
 image = "*"
