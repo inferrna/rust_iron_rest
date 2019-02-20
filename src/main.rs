@@ -55,35 +55,6 @@ impl fmt::Display for CommonError {
     }
 }
 
-impl error::Error for CommonError {
-    fn description(&self) -> &str {
-        // Both underlying errors already impl `Error`, so we defer to their
-        // implementations.
-        match *self {
-            CommonError::Image(ref err) => err.description(),
-            CommonError::Server(ref err) => err.description(),
-            CommonError::Json(ref err)  => err.description(),
-            CommonError::Req(ref err)  => err.description(),
-            CommonError::Io(ref err)  => err.description(),
-            CommonError::B64(ref err)  => err.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            // N.B. Both of these implicitly cast `err` from their concrete
-            // types (either `&io::Error` or `&num::ParseIntError`)
-            // to a trait object `&Error`. This works because both error types
-            // implement `Error`.
-            CommonError::Image(ref err) => Some(err),
-            CommonError::Server(ref err) => Some(err),
-            CommonError::Json(ref err)  => Some(err),
-            CommonError::Req(ref err)  => Some(err),
-            CommonError::Io(ref err)  => Some(err),
-            CommonError::B64(ref err)  => Some(err),
-        }
-    }
-}
 
 impl From<ImageError> for CommonError {
     fn from(err: ImageError) -> CommonError {
