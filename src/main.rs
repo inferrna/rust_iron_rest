@@ -162,11 +162,12 @@ fn process_image(img: DynamicImage, name: &str) -> Result<(), CommonError>{
     let digest = md5::compute(img.raw_pixels());
     let namext = format!("{}_{:x}{}", name, digest, EXT);
     //Check if file already exists
-    let count = read_dir(PATH)?.take_while(Result::is_ok)
-                               .map(|e| e.unwrap().file_name().into_string())
-                               .take_while(Result::is_ok)
-                               .filter(|n| n.to_owned().unwrap().contains(namext.as_str())).count();
-    if count > 0 {
+    let exists = read_dir(PATH)?.filter(Result::is_ok)
+                                .map(|e| e.unwrap().file_name().into_string())
+                                .filter(Result::is_ok)
+                                .skip_while(|n| !n.to_owned().unwrap().contains(namext.as_str()))
+                                .count()>0;
+    if exists {
         println!("{} already exists", namext);
         return Ok(());
     } else {
